@@ -1,0 +1,4 @@
+[env]
+FFMPEG_DIR = { value = "ffmpeg", relative = true }
+TS_RS_EXPORT_DIR = { value = "../src/lib/bindings", relative = true }
+LIBCLANG_PATH = "C:\\Program Files\\LLVM\\bin"

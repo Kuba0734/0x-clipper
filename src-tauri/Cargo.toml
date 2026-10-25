@@ -1,0 +1,115 @@
+[package]
+name = "zerox-clipper"
+version = "0.1.0"
+description = "0x-clipper – ressourcenschonender Clip-Recorder für Windows"
+authors = ["0x-clipper"]
+edition = "2021"
+rust-version = "1.85"
+
+[lib]
+name = "clipper_lib"
+crate-type = ["rlib"]
+
+[[bin]]
+name = "0x-clipper"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "protocol-asset", "image-png"] }
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tracing = { version = "0.1", features = ["release_max_level_info"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+crossbeam-channel = "0.5"
+parking_lot = "0.12"
+ts-rs = { version = "12", features = ["serde-compat", "no-serde-warnings"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+dirs = "6"
+trash = "5"
+windows-numerics = "0.3"
+ffmpeg-next = { version = "9", default-features = false, features = ["codec", "format", "software-resampling", "software-scaling"] }
+ffmpeg-sys-next = { version = "9", default-features = false, features = ["avcodec", "avformat", "swresample", "swscale"] }
+
+[dependencies.windows]
+version = "0.62"
+features = [
+  "Foundation",
+  "Foundation_Metadata",
+  "Graphics",
+  "Graphics_Capture",
+  "Graphics_DirectX",
+  "Graphics_DirectX_Direct3D11",
+  "Security_Authorization_AppCapabilityAccess",
+  "Win32_Foundation",
+  "Win32_Graphics_Direct2D",
+  "Win32_Graphics_Direct2D_Common",
+  "Win32_Graphics_Direct3D",
+  "Win32_Graphics_Direct3D11",
+  "Win32_Graphics_DirectWrite",
+  "Win32_Graphics_Dxgi",
+  "Win32_Graphics_Dxgi_Common",
+  "Win32_Graphics_Gdi",
+  "Win32_Graphics_Dwm",
+  "Win32_Media",
+  "Win32_Media_Audio",
+  "Win32_Media_Multimedia",
+  "Win32_Media_KernelStreaming",
+  "Win32_Devices_FunctionDiscovery",
+  "Win32_Security",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Performance",
+  "Win32_System_ProcessStatus",
+  "Win32_System_Registry",
+  "Win32_System_Threading",
+  "Win32_System_Variant",
+  "Win32_System_WinRT",
+  "Win32_System_WinRT_Direct3D11",
+  "Win32_System_WinRT_Graphics_Capture",
+  "Win32_UI_Accessibility",
+  "Win32_UI_HiDpi",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_PropertiesSystem",
+  "Win32_UI_WindowsAndMessaging",
+]
+
+[dev-dependencies]
+criterion = { version = "0.7", default-features = false }
+
+[[bench]]
+name = "ring"
+harness = false
+
+[[bench]]
+name = "mux"
+harness = false
+
+[features]
+# Logging pro Frame nur, wenn explizit eingeschaltet.
+trace-frames = []
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+opt-level = 3
+panic = "abort"
+strip = true
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"

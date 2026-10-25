@@ -1,0 +1,7 @@
+dist
+node_modules
+src-tauri/target
+src-tauri/ffmpeg
+src-tauri/gen
+src/lib/bindings
+pnpm-lock.yaml

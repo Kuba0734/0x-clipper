@@ -1,0 +1,15 @@
+:root {
+  --bg: #0b0b0f;
+  --surface: #14141a;
+  --surface-2: #1c1c24;
+  --border: #2a2a35;
+  --text: #ededf2;
+  --text-muted: #8b8b9a;
+  --accent: #7c5cff;
+  --accent-2: #22d3ee;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --radius: 14px;
+  --gradient: linear-gradient(135deg, var(--accent), var(--accent-2));
+  --glass: color-mix(in srgb, var(--surface) 72%, transparent);
+}
