@@ -39,11 +39,14 @@ pub struct Status {
     /// Gefüllte Sekunden im Replay-Buffer.
     pub buffered_secs: f64,
     pub buffer_target_secs: u32,
+    #[ts(type = "number")]
     pub buffer_bytes: u64,
+    #[ts(type = "number")]
     pub buffer_limit_bytes: u64,
     /// Video-Bitrate der letzten Messperiode.
     pub bitrate_kbps: u32,
     pub fps: f32,
+    #[ts(type = "number")]
     pub dropped_frames: u64,
     pub encoder: String,
     pub resolution: String,
@@ -51,6 +54,7 @@ pub struct Status {
     pub game: Option<String>,
     pub mic_muted: bool,
     /// Arbeitsspeicher des gesamten Prozesses (Private Bytes).
+    #[ts(type = "number")]
     pub process_ram_bytes: u64,
     pub last_error: Option<String>,
 }

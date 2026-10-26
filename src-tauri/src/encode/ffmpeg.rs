@@ -351,7 +351,10 @@ impl VideoEncoder {
             }
             EncoderKind::Mf => {
                 set("hw_encoding", "0");
-                set("scenario", "display_remoting");
+                set("scenario", "live_streaming");
+                // Low-Latency: der Software-MFT puffert sonst ~2 s Frames (Hunderte MB).
+                // SAFETY: ctx ist gültig und noch nicht geöffnet.
+                unsafe { (*self.ctx).flags |= ff::AV_CODEC_FLAG_LOW_DELAY as i32 };
                 match cfg.rate_control {
                     RateControl::Cbr => set("rate_control", "cbr"),
                     RateControl::Vbr => set("rate_control", "pc_vbr"),

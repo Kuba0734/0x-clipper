@@ -33,16 +33,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let out_dir = std::env::temp_dir().join("0x-clipper-smoke");
     std::fs::create_dir_all(&out_dir)?;
 
-    let dev = D3dDevice::high_performance()?;
-    println!("GPU: {}", dev.adapter_name);
+    let mb = || sysinfo::private_bytes() as f64 / 1048576.0;
+    println!("RAM nach Prozessstart: {:.1} MB", mb());
     let tp = Instant::now();
-    let cached = probe::cached(&dev);
-    let encoders = match cached {
+    let encoders = match probe::cached() {
         Some(c) => c,
-        None => probe::probe(&dev),
+        None => probe::probe(&D3dDevice::high_performance()?),
     };
     println!("Encoder ({} ms): {:?}", tp.elapsed().as_millis(), encoders.iter().map(|e| &e.id).collect::<Vec<_>>());
-    drop(dev);
 
     let mut s = Settings::default();
     s.capture.source = CaptureSource::Monitor { device: String::new() };
@@ -67,6 +65,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         ts.elapsed().as_millis(),
         t0.elapsed().as_millis()
     );
+    println!("RAM nach Pipeline-Start (Buffer leer): {:.1} MB", mb());
     // Warten, bis der erste Frame im Buffer liegt.
     let tf = Instant::now();
     while stats.encoded_frames.load(Ordering::Relaxed) == 0 && tf.elapsed() < Duration::from_secs(5) {

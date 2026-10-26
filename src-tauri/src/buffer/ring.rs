@@ -13,6 +13,16 @@ use std::sync::Arc;
 
 pub const VIDEO_STREAM: u8 = 0;
 
+/// Pool-Obergrenze je Stream-Art. Im Normalbetrieb wird eine GOP verdrängt und sofort
+/// wiederverwendet; mehr freie Pakete würden nur ungenutzt RAM halten (z. B. nach `clear`).
+const POOL_MAX: usize = 256;
+/// Unterhalb dieser Größe lohnt sich das Verkleinern recycelter Puffer nicht.
+const MIN_SLACK: usize = 16 * 1024;
+
+fn pool_index(stream: u8) -> usize {
+    usize::from(stream != VIDEO_STREAM)
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct Packet {
     /// 0 = Video, 1.. = Audiospuren.
@@ -75,7 +85,9 @@ pub struct ReplayRingBuffer {
     keyframes: VecDeque<i64>,
     bytes: usize,
     limits: Limits,
-    pool: PacketPool,
+    /// Getrennte Pools für Video (0) und Audio (1): sonst behält ein kleines Audio-Paket
+    /// die Kapazität eines großen Keyframes.
+    pools: [PacketPool; 2],
     latest_pts: i64,
     first_pts: Option<i64>,
 }
@@ -102,7 +114,7 @@ impl ReplayRingBuffer {
             keyframes: VecDeque::with_capacity(128),
             bytes: 0,
             limits,
-            pool: PacketPool::new(8192),
+            pools: [PacketPool::new(POOL_MAX), PacketPool::new(POOL_MAX)],
             latest_pts: 0,
             first_pts: None,
         }
@@ -135,7 +147,7 @@ impl ReplayRingBuffer {
 
     /// Kopiert ein Paket in den Puffer (Pool-Recycling, keine Allokation im Normalfall).
     pub fn push(&mut self, stream: u8, pts: i64, dts: i64, duration: i64, key: bool, data: &[u8]) {
-        let mut slot = self.pool.take();
+        let mut slot = self.pools[pool_index(stream)].take();
         let p = match Arc::get_mut(&mut slot) {
             Some(p) => p,
             // Pool liefert nur exklusive Pakete; dieser Zweig ist praktisch unerreichbar.
@@ -152,6 +164,11 @@ impl ReplayRingBuffer {
         p.dts = dts;
         p.duration = duration;
         p.key = key;
+        // Recycelte Puffer, die viel größer als nötig sind (alter Keyframe für ein P-Frame),
+        // werden ersetzt. Sonst wächst jede Pool-Kapazität auf das Maximum aller Pakete.
+        if p.data.capacity() > data.len().max(MIN_SLACK) * 4 {
+            p.data = Vec::with_capacity(data.len());
+        }
         p.data.clear();
         p.data.extend_from_slice(data);
         self.push_arc(slot);
@@ -162,7 +179,7 @@ impl ReplayRingBuffer {
         if p.stream == VIDEO_STREAM {
             // Video vor dem ersten Keyframe ist nicht dekodierbar.
             if self.keyframes.is_empty() && !p.key {
-                self.pool.give(p);
+                self.pools[pool_index(p.stream)].give(p);
                 return;
             }
             if p.key {
@@ -172,10 +189,10 @@ impl ReplayRingBuffer {
             self.first_pts.get_or_insert(p.pts);
         } else if self.keyframes.is_empty() {
             // Audio vor dem ersten Video-Keyframe würde nie gespeichert.
-            self.pool.give(p);
+            self.pools[pool_index(p.stream)].give(p);
             return;
         }
-        self.bytes += p.data.len();
+        self.bytes += p.data.capacity();
         self.packets.push_back(p);
         self.evict();
     }
@@ -206,8 +223,8 @@ impl ReplayRingBuffer {
                 break;
             }
             if let Some(p) = self.packets.pop_front() {
-                self.bytes -= p.data.len();
-                self.pool.give(p);
+                self.bytes -= p.data.capacity();
+                self.pools[pool_index(p.stream)].give(p);
             }
         }
         self.first_pts = self.packets.front().map(|p| p.pts);
@@ -215,7 +232,7 @@ impl ReplayRingBuffer {
 
     pub fn clear(&mut self) {
         while let Some(p) = self.packets.pop_front() {
-            self.pool.give(p);
+            self.pools[pool_index(p.stream)].give(p);
         }
         self.keyframes.clear();
         self.bytes = 0;
@@ -262,7 +279,7 @@ impl ReplayRingBuffer {
     }
 
     pub fn pool_len(&self) -> usize {
-        self.pool.len()
+        self.pools[0].len() + self.pools[1].len()
     }
 }
 
@@ -360,6 +377,24 @@ mod tests {
             rb.push(VIDEO_STREAM, pts, pts, FRAME, i % 60 == 0, &data);
         }
         assert!(rb.len() + rb.pool_len() <= total + 120);
+    }
+
+    #[test]
+    fn capacity_does_not_creep() {
+        // Große Keyframes, kleine P-Frames, winziges Audio: gezählte Bytes müssen in der
+        // Größenordnung der Nutzdaten bleiben, auch nach langer Laufzeit.
+        let mut rb = ReplayRingBuffer::new(limits(5, usize::MAX));
+        let key = vec![0u8; 300_000];
+        let p = vec![0u8; 40_000];
+        let a = vec![0u8; 400];
+        for i in 0..60 * 120 {
+            let pts = i * FRAME;
+            let k = i % 60 == 0;
+            rb.push(VIDEO_STREAM, pts, pts, FRAME, k, if k { &key } else { &p });
+            rb.push(1, pts, pts, FRAME, true, &a);
+        }
+        let payload: usize = rb.packets.iter().map(|p| p.data.len()).sum();
+        assert!(rb.bytes() < payload * 2, "bytes {} vs payload {}", rb.bytes(), payload);
     }
 
     #[test]

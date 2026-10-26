@@ -42,18 +42,19 @@ struct Cache {
     encoders: Vec<EncoderInfo>,
 }
 
-fn cache_key(dev: &D3dDevice) -> String {
+fn cache_key(adapter_name: &str, adapter_luid: i64) -> String {
     // SAFETY: avcodec_version hat keine Vorbedingungen.
     let ver = unsafe { ffmpeg_sys_next::avcodec_version() };
-    format!("{}|{:x}|{ver}", dev.adapter_name, dev.adapter_luid)
+    format!("{adapter_name}|{adapter_luid:x}|{ver}")
 }
 
-/// Gecachtes Ergebnis für dieses Gerät, falls vorhanden.
-pub fn cached(dev: &D3dDevice) -> Option<Vec<EncoderInfo>> {
+/// Gecachtes Ergebnis für den leistungsstärksten Adapter (ohne D3D11-Gerät), falls vorhanden.
+pub fn cached() -> Option<Vec<EncoderInfo>> {
+    let (name, luid) = D3dDevice::high_performance_adapter().ok()?;
     let path = paths::local_dir().ok()?.join("encoders.json");
     let text = std::fs::read_to_string(path).ok()?;
     let cache: Cache = serde_json::from_str(&text).ok()?;
-    (cache.key == cache_key(dev) && !cache.encoders.is_empty()).then_some(cache.encoders)
+    (cache.key == cache_key(&name, luid) && !cache.encoders.is_empty()).then_some(cache.encoders)
 }
 
 /// Testet alle Kandidaten (parallel, da jeder Open 50–200 ms kosten kann).
@@ -99,7 +100,7 @@ pub fn probe(dev: &D3dDevice) -> Vec<EncoderInfo> {
     }
     if let Ok(dir) = paths::local_dir() {
         let _ = std::fs::create_dir_all(&dir);
-        let cache = Cache { key: cache_key(dev), encoders: encoders.clone() };
+        let cache = Cache { key: cache_key(&dev.adapter_name, dev.adapter_luid), encoders: encoders.clone() };
         if let Ok(json) = serde_json::to_vec_pretty(&cache) {
             let _ = std::fs::write(dir.join("encoders.json"), json);
         }

@@ -43,6 +43,20 @@ impl D3dDevice {
         Self::create(adapter)
     }
 
+    /// Name und LUID des leistungsstärksten Adapters, ohne ein D3D11-Gerät zu erzeugen
+    /// (ein Gerät kostet im NVIDIA-Treiber ~50 MB und ~150 ms).
+    pub fn high_performance_adapter() -> CoreResult<(String, i64)> {
+        // SAFETY: Reine DXGI-Enumeration.
+        let adapter: IDXGIAdapter1 = unsafe {
+            let f: IDXGIFactory1 = CreateDXGIFactory1()?;
+            match f.cast::<IDXGIFactory6>() {
+                Ok(f6) => f6.EnumAdapterByGpuPreference(0, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE)?,
+                Err(_) => f.EnumAdapters1(0)?,
+            }
+        };
+        Ok(adapter_info(&adapter))
+    }
+
     /// Gerät auf dem Adapter, an dem der Monitor hängt (nötig für DXGI Desktop Duplication).
     pub fn for_monitor(monitor: HMONITOR) -> CoreResult<(Self, windows::Win32::Graphics::Dxgi::IDXGIOutput)> {
         // SAFETY: Reine COM-Enumeration; alle Rückgaben werden geprüft.

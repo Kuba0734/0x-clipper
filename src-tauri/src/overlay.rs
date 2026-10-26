@@ -327,6 +327,8 @@ impl Renderer {
                 );
             }
             rt.EndDraw(None, None)?;
+            // GDI puffert Zeichenbefehle: vor UpdateLayeredWindow sicher in die DIB schreiben.
+            let _ = GdiFlush();
         }
         let _ = &self.factory;
         Ok(())
@@ -591,7 +593,7 @@ fn tick(hwnd: HWND) {
         let progress = progress.clamp(0.0, 1.0);
         if (progress - a.drawn_progress).abs() > 0.001 {
             if let Err(e) = a.renderer.draw(&a.req, progress) {
-                tracing::debug!("Overlay zeichnen: {e}");
+                tracing::warn!("Overlay zeichnen: {e}");
             }
             a.drawn_progress = progress;
         }

@@ -9,12 +9,12 @@ recordingSecs: number,
 /**
  * Gefüllte Sekunden im Replay-Buffer.
  */
-bufferedSecs: number, bufferTargetSecs: number, bufferBytes: bigint, bufferLimitBytes: bigint, 
+bufferedSecs: number, bufferTargetSecs: number, bufferBytes: number, bufferLimitBytes: number, 
 /**
  * Video-Bitrate der letzten Messperiode.
  */
-bitrateKbps: number, fps: number, droppedFrames: bigint, encoder: string, resolution: string, source: string, game: string | null, micMuted: boolean, 
+bitrateKbps: number, fps: number, droppedFrames: number, encoder: string, resolution: string, source: string, game: string | null, micMuted: boolean, 
 /**
  * Arbeitsspeicher des gesamten Prozesses (Private Bytes).
  */
-processRamBytes: bigint, lastError: string | null, };
+processRamBytes: number, lastError: string | null, };

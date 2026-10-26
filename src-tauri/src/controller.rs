@@ -188,13 +188,15 @@ impl Controller {
 
     fn init_encoders(&mut self) {
         let t = Instant::now();
-        let list = match D3dDevice::high_performance() {
-            Ok(dev) => probe::cached(&dev).unwrap_or_else(|| probe::probe(&dev)),
+        // Normalfall: Cache-Treffer ohne eigenes D3D11-Gerät. Nur bei neuer GPU/neuem Treiber
+        // wird ein Gerät erzeugt und jeder Encoder testweise geöffnet.
+        let list = probe::cached().unwrap_or_else(|| match D3dDevice::high_performance() {
+            Ok(dev) => probe::probe(&dev),
             Err(e) => {
                 tracing::error!("Kein D3D11-Gerät: {e}");
                 Vec::new()
             }
-        };
+        });
         tracing::info!("Encoder-Liste in {} ms", t.elapsed().as_millis());
         *self.shared.encoders.write() = list;
         let _ = self.app.emit(events::ENCODERS, self.shared.encoders.read().clone());
