@@ -79,7 +79,19 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let w0 = Instant::now();
     let f0 = stats.encoded_frames.load(Ordering::Relaxed);
     let c0 = stats.captured_frames.load(Ordering::Relaxed);
-    std::thread::sleep(Duration::from_secs(secs));
+    // Zeitreihe: wächst der Prozess über den Buffer hinaus (Leck)?
+    for i in 0..secs.div_ceil(10) {
+        std::thread::sleep(Duration::from_secs(10.min(secs - i * 10)));
+        let buf = stats.buffer_bytes.load(Ordering::Relaxed) as f64 / 1048576.0;
+        println!(
+            "  t={:>3} s  privat {:.1} MB  Buffer {:.1} MB  ohne Buffer {:.1} MB  Frames {}",
+            (i + 1) * 10,
+            mb(),
+            buf,
+            mb() - buf,
+            stats.encoded_frames.load(Ordering::Relaxed)
+        );
+    }
     let wall = w0.elapsed().as_secs_f64();
     let cpu = (sysinfo::cpu_time_100ns() - cpu0) as f64 / 1e7;
     let cores = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1) as f64;

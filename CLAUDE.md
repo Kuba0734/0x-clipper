@@ -145,48 +145,30 @@ Jede Änderung am heißen Pfad (Capture, Encode, Ringpuffer) braucht einen Bench
 - Keine `unwrap()` / `expect()` im Core. Fehler → `thiserror`-Typen → Event an die UI.
 - `unsafe` nur für Win32/D3D11-FFI, jeweils mit `// SAFETY:`-Kommentar.
 
-### Regeln für das Frontend
-- Animationen **nur** über `transform` und `opacity` (GPU-komponiert). Nie `width`, `height`, `top`, `left`, `box-shadow` animieren.
-- `prefers-reduced-motion` respektieren und zusätzlich in den Einstellungen „Animationen reduzieren“ anbieten.
-- Listen in der Bibliothek virtualisieren (`@tanstack/react-virtual`).
-- Thumbnails werden im Rust-Core erzeugt (ein Frame per FFmpeg, WebP, 320 px) und gecacht, nie im Browser.
-- Statusdaten (RAM-Verbrauch, Bitrate) maximal 2× pro Sekunde an die UI senden, und nur wenn ein Fenster offen ist.
-- Bundle-Größe im Blick: keine schweren UI-Bibliotheken, Icons per Tree-Shaking (`lucide-react`).
+## Design
+- Modern, clean, dunkel, hochwertig
+- Monochrom: Schwarz, Weiß, Grau. Akzent `--accent` (Weiß), Text darauf `--on-accent`
+- `--danger` und `--success` nur für Fehler, Löschen und Erfolg
+- Glassmorphism: halbtransparente Panels, `backdrop-filter: blur()`, 1px-Ränder `rgba(255,255,255,0.08)`; Blur nur auf wenigen, großen Flächen, nie auf vielen Listenelementen
+- Leicht abgerundete Ecken, weiche Schatten, großzügige Abstände
+- Schrift: Inter, lokal eingebunden
+- Icons als Inline-SVG
+- Alle Farben, Radien, Abstände und Animationszeiten als CSS-Variablen in `src/ui/tokens.css`
 
----
-
-## Design-System
-
-Modern, dunkel, ruhig, mit lebendigen, aber nicht aufdringlichen Animationen.
-
-**Farben (CSS-Variablen in `src/styles/tokens.css`)**
-```
---bg:            #0B0B0F   /* App-Hintergrund */
---surface:       #14141A   /* Karten */
---surface-2:     #1C1C24   /* Hover, Inputs */
---border:        #2A2A35
---text:          #EDEDF2
---text-muted:    #8B8B9A
---accent:        #7C5CFF   /* Violett */
---accent-2:      #22D3EE   /* Cyan für Verläufe */
---success:       #22C55E
---danger:        #EF4444   /* Aufnahme-Indikator */
---radius:        14px
-```
-- Akzent-Verlauf `linear-gradient(135deg, var(--accent), var(--accent-2))` für primäre Buttons, aktive Navigation und den Buffer-Ring.
-- Leichtes Glas für Overlays: `backdrop-filter: blur(16px)` auf halbtransparentem `--surface`.
-- Schrift: **Inter** (lokal gebündelt), Zahlen mit `font-variant-numeric: tabular-nums`.
-- Eigene Titelleiste (`decorations: false`) mit Drag-Region und eigenen Fensterbuttons.
-
-**Animationen (Motion)**
-- Standard-Spring: `{ type: "spring", stiffness: 380, damping: 30 }`; Dauer kurzer Übergänge 150–250 ms.
-- Seitenwechsel: Fade + 8 px Slide, `AnimatePresence mode="wait"`.
-- Karten: Hover-Lift (`y: -2`, leichter Scale 1.01), gestaffeltes Einblenden (`staggerChildren: 0.03`).
-- Buffer-Indikator: animierter Ring, der den Füllstand zeigt; pulsierender roter Punkt bei Aufnahme.
-- „Clip gespeichert“: Toast fliegt mit Spring ein, Häkchen wird als SVG-Pfad gezeichnet (`pathLength`), dann Auto-Dismiss.
-- Hotkey-Eingabe: Tasten erscheinen als „Keycaps“ mit kurzem Press-Effekt.
-- Toggles und Slider mit `layout`-Animation für den Knopf.
-- Skeleton-Shimmer beim Laden der Bibliothek.
+## Animationen
+- Nichts erscheint oder verschwindet abrupt
+- Nur `transform` und `opacity` animieren, keine Layout-Properties
+- Standard-Easing: `cubic-bezier(0.22, 1, 0.36, 1)`, Dauer 150–300 ms
+- Modals: Fade + Scale 0.95 → 1 + leichter Slide nach oben, schließen umgekehrt
+- Listen erscheinen gestaffelt (40–60 ms pro Element, max. ~10 Elemente staffeln)
+- Hover: `translateY(-2px)` + dezenter Glow; Klick: `scale(0.97)`
+- Toasts sliden seitlich ein, mit ablaufender Fortschrittsleiste
+- Zahlen auf der Performance-Seite zählen animiert hoch
+- Ladezustände mit Skeleton-Shimmer
+- Tab- und Seitenwechsel mit Crossfade
+- Nur CSS-Transitions und `@keyframes`, keine Libraries
+- `prefers-reduced-motion` und eine eigene Einstellung in Settings schalten Animationen fast komplett ab
+- Tab-Leiste und Adressleiste reagieren immer sofort, Animationen dürfen Eingaben nie verzögern
 
 ---
 

@@ -27,7 +27,7 @@ impl PacketRouter {
         let shared = {
             let mut ring = self.ring.lock();
             let p = ring.push_shared(stream, pts, dts, dur, key, data);
-            self.stats.buffer_bytes.store(ring.bytes() as u64, Ordering::Relaxed);
+            self.stats.buffer_bytes.store(ring.ram_bytes() as u64, Ordering::Relaxed);
             self.stats.buffered_us.store(ring.buffered_us(), Ordering::Relaxed);
             p
         };

@@ -13,9 +13,9 @@ use std::sync::Arc;
 
 pub const VIDEO_STREAM: u8 = 0;
 
-/// Pool-Obergrenze je Stream-Art. Im Normalbetrieb wird eine GOP verdrängt und sofort
-/// wiederverwendet; mehr freie Pakete würden nur ungenutzt RAM halten (z. B. nach `clear`).
-const POOL_MAX: usize = 256;
+/// Pool-Obergrenze je Stream-Art. Im Normalbetrieb wird eine GOP (60 Pakete bei 60 fps)
+/// verdrängt und sofort wiederverwendet; mehr freie Pakete würden nur ungenutzt RAM halten.
+const POOL_MAX: usize = 96;
 /// Unterhalb dieser Größe lohnt sich das Verkleinern recycelter Puffer nicht.
 const MIN_SLACK: usize = 16 * 1024;
 
@@ -46,25 +46,52 @@ impl Packet {
 pub struct PacketPool {
     free: Vec<Arc<Packet>>,
     max_free: usize,
+    /// Summe der Kapazitäten aller freien Pakete (zählt zum RAM-Verbrauch).
+    bytes: usize,
 }
 
 impl PacketPool {
     pub fn new(max_free: usize) -> Self {
-        PacketPool { free: Vec::with_capacity(max_free), max_free }
+        PacketPool { free: Vec::with_capacity(max_free), max_free, bytes: 0 }
     }
 
-    fn take(&mut self) -> Arc<Packet> {
-        self.free.pop().unwrap_or_default()
+    /// Best-Fit: das kleinste freie Paket, das `len` ohne Realloc aufnimmt; sonst das
+    /// größte (wächst dann einmal). So bleiben große Keyframe-Puffer für Keyframes übrig
+    /// und kleine P-Frames blähen keine Puffer auf. Linearer Scan über ≤ 96 Einträge.
+    fn take(&mut self, len: usize) -> Arc<Packet> {
+        let mut best: Option<(usize, usize)> = None;
+        let mut largest: Option<(usize, usize)> = None;
+        for (i, p) in self.free.iter().enumerate() {
+            let cap = p.data.capacity();
+            if cap >= len && best.is_none_or(|(_, c)| cap < c) {
+                best = Some((i, cap));
+            }
+            if largest.is_none_or(|(_, c)| cap > c) {
+                largest = Some((i, cap));
+            }
+        }
+        match best.or(largest) {
+            Some((i, cap)) => {
+                self.bytes -= cap;
+                self.free.swap_remove(i)
+            }
+            None => Arc::default(),
+        }
     }
 
     fn give(&mut self, mut p: Arc<Packet>) {
         if self.free.len() < self.max_free && Arc::get_mut(&mut p).is_some() {
+            self.bytes += p.data.capacity();
             self.free.push(p);
         }
     }
 
     pub fn len(&self) -> usize {
         self.free.len()
+    }
+
+    pub fn bytes(&self) -> usize {
+        self.bytes
     }
 
     pub fn is_empty(&self) -> bool {
@@ -147,7 +174,7 @@ impl ReplayRingBuffer {
 
     /// Kopiert ein Paket in den Puffer (Pool-Recycling, keine Allokation im Normalfall).
     pub fn push(&mut self, stream: u8, pts: i64, dts: i64, duration: i64, key: bool, data: &[u8]) {
-        let mut slot = self.pools[pool_index(stream)].take();
+        let mut slot = self.pools[pool_index(stream)].take(data.len());
         let p = match Arc::get_mut(&mut slot) {
             Some(p) => p,
             // Pool liefert nur exklusive Pakete; dieser Zweig ist praktisch unerreichbar.
@@ -166,7 +193,7 @@ impl ReplayRingBuffer {
         p.key = key;
         // Recycelte Puffer, die viel größer als nötig sind (alter Keyframe für ein P-Frame),
         // werden ersetzt. Sonst wächst jede Pool-Kapazität auf das Maximum aller Pakete.
-        if p.data.capacity() > data.len().max(MIN_SLACK) * 4 {
+        if p.data.capacity() > data.len().max(MIN_SLACK) * 2 {
             p.data = Vec::with_capacity(data.len());
         }
         p.data.clear();
@@ -261,8 +288,14 @@ impl ReplayRingBuffer {
         Some(Snapshot { packets, start_pts: start_key, end_pts: self.latest_pts })
     }
 
+    /// Kapazität der gespeicherten Pakete (maßgeblich für das Byte-Limit).
     pub fn bytes(&self) -> usize {
         self.bytes
+    }
+
+    /// Tatsächlicher RAM des Puffers inklusive freier Pool-Pakete (für die Anzeige).
+    pub fn ram_bytes(&self) -> usize {
+        self.bytes + self.pools[0].bytes() + self.pools[1].bytes()
     }
 
     pub fn len(&self) -> usize {
@@ -394,7 +427,9 @@ mod tests {
             rb.push(1, pts, pts, FRAME, true, &a);
         }
         let payload: usize = rb.packets.iter().map(|p| p.data.len()).sum();
-        assert!(rb.bytes() < payload * 2, "bytes {} vs payload {}", rb.bytes(), payload);
+        assert!(rb.bytes() < payload * 3 / 2, "bytes {} vs payload {}", rb.bytes(), payload);
+        // Pool hält höchstens POOL_MAX Pakete je Art; mit Best-Fit bleibt er klein.
+        assert!(rb.ram_bytes() - rb.bytes() < payload / 2, "pool {}", rb.ram_bytes() - rb.bytes());
     }
 
     #[test]
