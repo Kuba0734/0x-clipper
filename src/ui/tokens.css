@@ -1,0 +1,74 @@
+/* Design-Tokens: einzige Quelle für Farben, Radien, Abstände, Schatten und Animationszeiten. */
+:root {
+  color-scheme: dark;
+
+  /* Monochrom */
+  --bg: #070708;
+  --bg-elevated: #0e0e10;
+  --surface: rgba(255, 255, 255, 0.035);
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(255, 255, 255, 0.06);
+  --surface-solid: #111113;
+  --glass: rgba(18, 18, 20, 0.62);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --text: #f4f4f5;
+  --text-muted: #8e8e93;
+  --text-subtle: #5c5c62;
+  --accent: #ffffff;
+  --on-accent: #0a0a0b;
+  /* Nur für Fehler, Löschen, Erfolg (und den Aufnahme-Indikator). */
+  --danger: #ff453a;
+  --success: #30d158;
+
+  /* Radien */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --radius-full: 999px;
+
+  /* Abstände */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Schatten und Glow */
+  --shadow-soft: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 12px 32px -12px rgba(0, 0, 0, 0.7);
+  --shadow-modal: 0 40px 80px -20px rgba(0, 0, 0, 0.8);
+  --glow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 10px 30px -10px rgba(255, 255, 255, 0.12);
+  --blur: 20px;
+
+  /* Animation */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 150ms;
+  --dur: 220ms;
+  --dur-slow: 300ms;
+  --stagger: 50ms;
+  --hover-lift: -2px;
+  --press-scale: 0.97;
+}
+
+/* Animationen fast komplett aus: System-Einstellung oder eigene Einstellung (.reduce-motion). */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 1ms;
+    --dur: 1ms;
+    --dur-slow: 1ms;
+    --stagger: 0ms;
+    --hover-lift: 0px;
+    --press-scale: 1;
+  }
+}
+:root.reduce-motion {
+  --dur-fast: 1ms;
+  --dur: 1ms;
+  --dur-slow: 1ms;
+  --stagger: 0ms;
+  --hover-lift: 0px;
+  --press-scale: 1;
+}

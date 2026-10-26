@@ -1,12 +1,10 @@
-import { m } from "motion/react";
-import { FolderSearch, Scissors, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button, IconButton } from "@/components/ui/Button";
 import { useLang, useT } from "@/i18n";
 import { commands, errorMessage, fileSrc, type ClipInfo } from "@/lib/ipc";
 import { formatBytes, formatDate, formatDuration } from "@/lib/format";
-import { spring } from "@/lib/motion";
+import { Icon } from "@/components/ui/Icon";
 import { useLibrary } from "@/stores/library";
 import { useToasts } from "@/stores/toasts";
 
@@ -53,7 +51,7 @@ function RangeBar({
     <div ref={ref} className="relative h-10 select-none" onClick={seek}>
       <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-surface-2" />
       <div
-        className="absolute top-1/2 left-0 h-2 w-full origin-left -translate-y-1/2 rounded-full bg-gradient-accent opacity-80"
+        className="absolute top-1/2 left-0 h-2 w-full origin-left -translate-y-1/2 rounded-full bg-accent opacity-90"
         style={{ transform: `translateX(${pct(start)}%) scaleX(${(end - start) / Math.max(duration, 0.001)})` }}
       />
       <div className="pointer-events-none absolute inset-y-0 left-0 w-full" style={{ transform: `translateX(${pct(current)}%)` }}>
@@ -79,7 +77,7 @@ function RangeBar({
   );
 }
 
-export function Player({ clip, onClose }: { clip: ClipInfo; onClose: () => void }) {
+export function Player({ clip, closing, onClose }: { clip: ClipInfo; closing: boolean; onClose: () => void }) {
   const t = useT();
   const lang = useLang();
   const video = useRef<HTMLVideoElement>(null);
@@ -136,21 +134,13 @@ export function Player({ clip, onClose }: { clip: ClipInfo; onClose: () => void 
 
   const trimmed = range[0] > 0.05 || range[1] < duration - 0.05;
   return (
-    <m.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.18 }}
-      className="fixed inset-0 top-10 z-40 grid place-items-center bg-black/60 p-8 backdrop-blur-sm"
+    <div
+      className={`fixed inset-0 top-10 z-40 grid place-items-center bg-black/60 p-8 backdrop-blur-md ${closing ? "anim-fade-out" : "anim-fade-in"}`}
       onClick={onClose}
     >
-      <m.div
-        initial={{ opacity: 0, scale: 0.96, y: 12 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.97, y: 8 }}
-        transition={spring}
+      <div
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-card border border-border bg-surface shadow-2xl"
+        className={`flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-lg border border-border-strong bg-elevated shadow-[var(--shadow-modal)] ${closing ? "anim-modal-out" : "anim-modal-in"}`}
         role="dialog"
         aria-label={clip.fileName}
       >
@@ -162,7 +152,7 @@ export function Player({ clip, onClose }: { clip: ClipInfo; onClose: () => void 
             </div>
           </div>
           <IconButton label={t("library.close")} onClick={onClose}>
-            <X className="size-4" />
+            <Icon name="x" size={16} />
           </IconButton>
         </div>
         <video
@@ -182,7 +172,7 @@ export function Player({ clip, onClose }: { clip: ClipInfo; onClose: () => void 
         />
         <div className="space-y-3 px-4 py-4">
           <div className="flex items-center gap-3">
-            <Scissors className="size-4 text-muted" />
+            <Icon name="scissors" size={16} className="text-muted" />
             <div className="flex-1">
               <RangeBar
                 duration={duration}
@@ -203,10 +193,10 @@ export function Player({ clip, onClose }: { clip: ClipInfo; onClose: () => void 
           <p className="text-[12px] text-muted">{t("library.trimHint")}</p>
           <div className="flex items-center justify-between gap-2">
             <div className="flex gap-2">
-              <Button size="sm" icon={<FolderSearch className="size-4" />} onClick={() => void commands.revealClip(clip.path)}>
+              <Button size="sm" icon={<Icon name="folderSearch" size={16} />} onClick={() => void commands.revealClip(clip.path)}>
                 {t("library.reveal")}
               </Button>
-              <Button size="sm" variant={confirmDelete ? "danger" : "ghost"} icon={<Trash2 className="size-4" />} onClick={() => void del()}>
+              <Button size="sm" variant={confirmDelete ? "danger" : "ghost"} icon={<Icon name="trash" size={16} />} onClick={() => void del()}>
                 {confirmDelete ? t("library.deleteConfirm") : t("library.delete")}
               </Button>
             </div>
@@ -220,7 +210,7 @@ export function Player({ clip, onClose }: { clip: ClipInfo; onClose: () => void 
             </div>
           </div>
         </div>
-      </m.div>
-    </m.div>
+      </div>
+    </div>
   );
 }

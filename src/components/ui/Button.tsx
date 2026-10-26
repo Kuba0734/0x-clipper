@@ -1,58 +1,50 @@
-import { m, type HTMLMotionProps } from "motion/react";
-import type { ReactNode } from "react";
-
-import { fast } from "@/lib/motion";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 
-interface Props extends Omit<HTMLMotionProps<"button">, "children"> {
+interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: "sm" | "md" | "lg";
   icon?: ReactNode;
-  children?: ReactNode;
 }
 
 const variants: Record<Variant, string> = {
-  primary: "bg-gradient-accent text-white shadow-[0_6px_24px_-8px_var(--accent)]",
-  secondary: "bg-surface-2 text-text border border-border hover:border-muted/40",
-  ghost: "text-muted hover:text-text hover:bg-surface-2",
-  danger: "bg-danger text-white shadow-[0_6px_24px_-10px_var(--danger)]",
+  // Akzent = Weiß, Text darauf = --on-accent.
+  primary: "bg-accent text-on-accent lift",
+  secondary: "border border-border bg-surface text-text hoverable lift",
+  ghost: "text-muted hoverable hover:text-text",
+  danger: "bg-danger text-white lift",
 };
 
 const sizes = {
-  sm: "h-8 px-3 text-[13px] gap-1.5 rounded-[10px]",
-  md: "h-10 px-4 text-sm gap-2 rounded-[12px]",
-  lg: "h-12 px-5 text-[15px] gap-2.5 rounded-[var(--radius)]",
+  sm: "h-8 px-3 text-[13px] gap-1.5 rounded-sm",
+  md: "h-10 px-4 text-sm gap-2 rounded-md",
+  lg: "h-12 px-5 text-[15px] gap-2.5 rounded-lg",
 };
 
 export function Button({ variant = "secondary", size = "md", icon, children, className = "", ...rest }: Props) {
   return (
-    <m.button
+    <button
       type="button"
-      whileHover={{ y: -1 }}
-      whileTap={{ scale: 0.97 }}
-      transition={fast}
-      className={`inline-flex items-center justify-center font-medium transition-colors select-none disabled:opacity-40 disabled:pointer-events-none ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`press inline-flex items-center justify-center font-medium select-none disabled:pointer-events-none disabled:opacity-35 ${variants[variant]} ${sizes[size]} ${className}`}
       {...rest}
     >
       {icon}
       {children}
-    </m.button>
+    </button>
   );
 }
 
 export function IconButton({ label, children, className = "", ...rest }: Props & { label: string }) {
   return (
-    <m.button
+    <button
       type="button"
       aria-label={label}
       title={label}
-      whileTap={{ scale: 0.92 }}
-      transition={fast}
-      className={`inline-flex size-8 items-center justify-center rounded-[10px] text-muted transition-colors hover:bg-surface-2 hover:text-text ${className}`}
+      className={`press hoverable inline-flex size-8 items-center justify-center rounded-sm text-muted hover:text-text ${className}`}
       {...rest}
     >
       {children}
-    </m.button>
+    </button>
   );
 }

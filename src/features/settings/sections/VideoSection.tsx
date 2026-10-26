@@ -1,7 +1,7 @@
-import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { IconButton } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import { Field, Section } from "@/components/ui/Field";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { Segmented } from "@/components/ui/Segmented";
@@ -69,7 +69,7 @@ function SourceFields() {
             }))}
           />
           <IconButton label={t("settings.video.refresh")} onClick={refresh}>
-            <RefreshCw className="size-4" />
+            <Icon name="refresh" size={16} />
           </IconButton>
         </Field>
       )}
@@ -88,7 +88,7 @@ function SourceFields() {
             ].map((w) => ({ value: winKey(w), label: `${w.title} — ${w.exe}` }))}
           />
           <IconButton label={t("settings.video.refresh")} onClick={refresh}>
-            <RefreshCw className="size-4" />
+            <Icon name="refresh" size={16} />
           </IconButton>
         </Field>
       )}
@@ -132,7 +132,7 @@ export function VideoSection() {
       <Section title={t("settings.video.source")}>
         <SourceFields />
       </Section>
-      <Section title={t("settings.categories.video")}>
+      <Section title={t("settings.categories.video")} index={1}>
         <Field label={t("settings.video.preset")}>
           <Segmented
             value={v.preset}

@@ -1,19 +1,27 @@
 @import "./fonts.css";
 @import "tailwindcss";
-@import "./tokens.css";
+@import "../ui/tokens.css";
+@import "../ui/animations.css";
 
 @theme {
   --color-bg: var(--bg);
+  --color-elevated: var(--bg-elevated);
   --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
   --color-surface-2: var(--surface-2);
+  --color-solid: var(--surface-solid);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-text: var(--text);
   --color-muted: var(--text-muted);
+  --color-subtle: var(--text-subtle);
   --color-accent: var(--accent);
-  --color-accent-2: var(--accent-2);
+  --color-on-accent: var(--on-accent);
   --color-success: var(--success);
   --color-danger: var(--danger);
-  --radius-card: var(--radius);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius-lg);
   --font-sans: "Inter Variable", system-ui, sans-serif;
 }
 
@@ -25,16 +33,20 @@
   }
   body {
     margin: 0;
-    background: var(--bg);
     color: var(--text);
     font-family: var(--font-sans);
     font-size: 14px;
     -webkit-font-smoothing: antialiased;
     user-select: none;
     overflow: hidden;
+    /* Dezente Lichtflecken, damit Glas-Panels Tiefe bekommen. */
+    background:
+      radial-gradient(1200px 600px at 85% -10%, rgba(255, 255, 255, 0.05), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(255, 255, 255, 0.035), transparent 60%),
+      var(--bg);
   }
   ::selection {
-    background: color-mix(in srgb, var(--accent) 40%, transparent);
+    background: rgba(255, 255, 255, 0.25);
   }
   :focus-visible {
     outline: 2px solid var(--accent);
@@ -45,56 +57,39 @@
     height: 10px;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--border);
+    background: var(--border-strong);
     border-radius: 8px;
-    border: 2px solid var(--bg);
+    border: 2px solid transparent;
+    background-clip: padding-box;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
+  }
+  option {
+    background: var(--surface-solid);
+    color: var(--text);
   }
 }
 
 @utility tabular {
   font-variant-numeric: tabular-nums;
 }
-@utility bg-gradient-accent {
-  background-image: var(--gradient);
-}
+/* Glas nur für wenige große Flächen (Sidebar, Modal, Toasts). */
 @utility glass {
   background: var(--glass);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(var(--blur)) saturate(140%);
+  border: 1px solid var(--border);
+}
+/* Panels ohne Blur (Karten, Listen): nur halbtransparent mit 1px-Rand. */
+@utility panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
 }
 @utility drag-region {
   -webkit-app-region: drag;
 }
 @utility no-drag {
   -webkit-app-region: no-drag;
-}
-
-/* Skeleton-Shimmer: nur transform wird animiert. */
-.skeleton {
-  position: relative;
-  overflow: hidden;
-  background: var(--surface-2);
-}
-.skeleton::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.05), transparent);
-  animation: shimmer 1.4s infinite;
-}
-@keyframes shimmer {
-  to {
-    transform: translateX(100%);
-  }
-}
-.reduce-motion .skeleton::after {
-  animation: none;
-}
-@media (prefers-reduced-motion: reduce) {
-  .skeleton::after {
-    animation: none;
-  }
 }

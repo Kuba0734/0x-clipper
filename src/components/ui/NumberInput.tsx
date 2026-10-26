@@ -33,7 +33,7 @@ export function NumberInput({ value, onChange, min, max, suffix, label, width = 
         onChange={(e) => setText(e.target.value.replace(/[^\d.]/g, ""))}
         onBlur={commit}
         onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-        className={`tabular h-9 w-full rounded-[10px] border border-border bg-surface-2 pl-3 text-[13px] text-text outline-none focus-visible:border-accent ${suffix ? "pr-12" : "pr-3"}`}
+        className={`tabular h-9 w-full rounded-sm border border-border bg-surface pl-3 text-[13px] text-text outline-none focus-visible:border-border-strong ${suffix ? "pr-12" : "pr-3"}`}
       />
       {suffix && (
         <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[12px] text-muted">

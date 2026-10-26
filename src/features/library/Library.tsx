@@ -1,14 +1,14 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { AnimatePresence } from "motion/react";
-import { FolderOpen, Search } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import { Skeleton } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import { useT } from "@/i18n";
 import { commands, type ClipInfo } from "@/lib/ipc";
 import { formatBytes } from "@/lib/format";
+import { usePresence } from "@/lib/anim";
 import { useLibrary } from "@/stores/library";
 import { ClipThumb } from "./ClipThumb";
 import { Player } from "./Player";
@@ -25,7 +25,17 @@ export function Library() {
   const [game, setGame] = useState("__all");
   const [sort, setSort] = useState<Sort>("newest");
   const [open, setOpen] = useState<ClipInfo | null>(null);
+  // Der zuletzt geöffnete Clip bleibt während der Schließ-Animation sichtbar.
+  const [shownClip, setShownClip] = useState<ClipInfo | null>(null);
+  if (open && open !== shownClip) setShownClip(open);
+  const player = usePresence(open !== null);
   const deferredQuery = useDeferredValue(query);
+  // Gestaffelt nur beim ersten Erscheinen, nicht für Zeilen, die beim Scrollen nachrücken.
+  const [firstPaint, setFirstPaint] = useState(true);
+  useEffect(() => {
+    const t = window.setTimeout(() => setFirstPaint(false), 800);
+    return () => window.clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     void load();
@@ -76,12 +86,12 @@ export function Library() {
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted" />
+            <Icon name="search" size={16} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("library.search")}
-              className="h-9 w-56 rounded-[10px] border border-border bg-surface-2 pr-3 pl-9 text-[13px] outline-none focus-visible:border-accent"
+              className="h-9 w-56 rounded-sm border border-border bg-surface pr-3 pl-9 text-[13px] outline-none placeholder:text-subtle focus-visible:border-border-strong"
             />
           </div>
           <Select
@@ -100,7 +110,7 @@ export function Library() {
               { value: "largest", label: t("library.sortLargest") },
             ]}
           />
-          <Button icon={<FolderOpen className="size-4" />} onClick={() => void commands.openClipsFolder()}>
+          <Button icon={<Icon name="folder" size={16} />} onClick={() => void commands.openClipsFolder()}>
             {t("library.openFolder")}
           </Button>
         </div>
@@ -119,7 +129,7 @@ export function Library() {
         ) : filtered.length === 0 ? (
           <div className="grid h-60 place-items-center text-[13.5px] text-muted">{t("library.empty")}</div>
         ) : (
-          <div style={{ height: virt.getTotalSize(), position: "relative" }}>
+          <div style={{ height: virt.getTotalSize(), position: "relative" }} className="anim-fade-in">
             {virt.getVirtualItems().map((row) => (
               <div
                 key={row.key}
@@ -130,8 +140,13 @@ export function Library() {
                   gap: GAP,
                 }}
               >
-                {filtered.slice(row.index * cols, row.index * cols + cols).map((c) => (
-                  <ClipThumb key={c.path} clip={c} onOpen={() => setOpen(c)} />
+                {filtered.slice(row.index * cols, row.index * cols + cols).map((c, col) => (
+                  <ClipThumb
+                    key={c.path}
+                    clip={c}
+                    index={firstPaint ? row.index * cols + col : undefined}
+                    onOpen={() => setOpen(c)}
+                  />
                 ))}
               </div>
             ))}
@@ -139,7 +154,9 @@ export function Library() {
         )}
       </div>
 
-      <AnimatePresence>{open && <Player key={open.path} clip={open} onClose={() => setOpen(null)} />}</AnimatePresence>
+      {player.mounted && shownClip && (
+        <Player key={shownClip.path} clip={shownClip} closing={player.closing} onClose={() => setOpen(null)} />
+      )}
     </div>
   );
 }

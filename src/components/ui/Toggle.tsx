@@ -1,7 +1,3 @@
-import { m } from "motion/react";
-
-import { spring } from "@/lib/motion";
-
 interface Props {
   checked: boolean;
   onChange: (v: boolean) => void;
@@ -9,7 +5,7 @@ interface Props {
   disabled?: boolean;
 }
 
-/** Schalter; der Knopf bewegt sich per `layout`-Animation (FLIP = transform). */
+/** Schalter: Knopf per translateX, aktive Fläche per opacity eingeblendet. */
 export function Toggle({ checked, onChange, label, disabled }: Props) {
   return (
     <button
@@ -19,11 +15,21 @@ export function Toggle({ checked, onChange, label, disabled }: Props) {
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-200 disabled:opacity-40 ${
-        checked ? "justify-end bg-gradient-accent" : "justify-start bg-surface-2 ring-1 ring-border"
-      }`}
+      className="press relative h-6 w-11 shrink-0 rounded-full border border-border-strong bg-surface-2 disabled:opacity-35"
     >
-      <m.span layout transition={spring} className="block size-5 rounded-full bg-white shadow-sm" />
+      <span
+        aria-hidden
+        className="fade absolute inset-[-1px] rounded-full bg-accent"
+        style={{ opacity: checked ? 1 : 0 }}
+      />
+      <span
+        aria-hidden
+        className="tween absolute top-[2px] left-[2px] block size-[18px] rounded-full bg-text shadow-sm"
+        style={{ transform: `translateX(${checked ? 20 : 0}px)` }}
+      >
+        {/* Dunkler Knopf auf weißer Fläche: per opacity statt Farbwechsel. */}
+        <span className="fade absolute inset-0 rounded-full bg-on-accent" style={{ opacity: checked ? 1 : 0 }} />
+      </span>
     </button>
   );
 }

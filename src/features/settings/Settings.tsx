@@ -1,13 +1,12 @@
-import { save, open } from "@tauri-apps/plugin-dialog";
-import { AnimatePresence, m } from "motion/react";
-import { AudioLines, Download, Keyboard, Layers, MonitorPlay, RotateCcw, Settings2, Timer, Upload, FolderOutput } from "lucide-react";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Card";
+import { Crossfade } from "@/components/ui/Crossfade";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { useT, type TKey } from "@/i18n";
 import { commands, errorMessage } from "@/lib/ipc";
-import { spring } from "@/lib/motion";
 import { useSettings } from "@/stores/settings";
 import { useToasts } from "@/stores/toasts";
 import { useUi } from "@/stores/ui";
@@ -19,25 +18,30 @@ import { OverlaySection } from "./sections/OverlaySection";
 import { ReplaySection } from "./sections/ReplaySection";
 import { VideoSection } from "./sections/VideoSection";
 
-const categories = [
-  { id: "general", icon: Settings2, Comp: GeneralSection },
-  { id: "replay", icon: Timer, Comp: ReplaySection },
-  { id: "video", icon: MonitorPlay, Comp: VideoSection },
-  { id: "audio", icon: AudioLines, Comp: AudioSection },
-  { id: "hotkeys", icon: Keyboard, Comp: HotkeysSection },
-  { id: "output", icon: FolderOutput, Comp: OutputSection },
-  { id: "overlay", icon: Layers, Comp: OverlaySection },
-] as const;
+type CatId = "general" | "replay" | "video" | "audio" | "hotkeys" | "output" | "overlay";
+
+const categories: { id: CatId; icon: IconName; Comp: () => React.ReactNode }[] = [
+  { id: "general", icon: "sliders", Comp: GeneralSection },
+  { id: "replay", icon: "timer", Comp: ReplaySection },
+  { id: "video", icon: "monitorPlay", Comp: VideoSection },
+  { id: "audio", icon: "audio", Comp: AudioSection },
+  { id: "hotkeys", icon: "keyboard", Comp: HotkeysSection },
+  { id: "output", icon: "folderOut", Comp: OutputSection },
+  { id: "overlay", icon: "layers", Comp: OverlaySection },
+];
+
+const ITEM_H = 36;
+const GAP = 2;
 
 export function SettingsPage() {
   const t = useT();
   const settings = useSettings((s) => s.settings);
-  const saving = useSettings((s) => s.saving);
   const replace = useSettings((s) => s.replace);
-  const { settingsCategory: cat, setSettingsCategory } = useUi();
+  const { settingsCategory, setSettingsCategory } = useUi();
   const push = useToasts((s) => s.push);
   const [confirmReset, setConfirmReset] = useState(false);
-  const active = categories.find((c) => c.id === cat) ?? categories[0];
+  const idx = Math.max(0, categories.findIndex((c) => c.id === settingsCategory));
+  const active = categories[idx] ?? categories[0];
 
   const doExport = async () => {
     const path = await save({ defaultPath: "0x-clipper-settings.json", filters: [{ name: "JSON", extensions: ["json"] }] });
@@ -64,41 +68,44 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="mx-auto flex max-w-6xl gap-8 px-8 py-7">
+    <div className="mx-auto flex max-w-6xl gap-8 px-8 py-8">
       <aside className="sticky top-0 w-52 shrink-0 self-start">
-        <h1 className="mb-4 text-[26px] font-semibold tracking-tight">{t("settings.title")}</h1>
-        <nav className="flex flex-col gap-0.5">
-          {categories.map(({ id, icon: Icon }) => {
-            const isActive = id === active.id;
+        <h1 className="anim-rise-in mb-5 text-[28px] font-semibold tracking-tight">{t("settings.title")}</h1>
+        <nav className="relative flex flex-col" style={{ gap: GAP }}>
+          <span
+            aria-hidden
+            className="slide-indicator absolute inset-x-0 top-0 rounded-sm border border-border bg-surface-2"
+            style={{ height: ITEM_H, transform: `translateY(${idx * (ITEM_H + GAP)}px)` }}
+          />
+          {categories.map(({ id, icon }) => {
+            const isActive = id === active?.id;
             return (
               <button
                 key={id}
                 type="button"
                 onClick={() => setSettingsCategory(id)}
-                className={`relative flex h-9 items-center gap-2.5 rounded-[10px] px-3 text-[13.5px] font-medium transition-colors ${
+                style={{ height: ITEM_H }}
+                className={`press relative flex items-center gap-2.5 rounded-sm px-3 text-[13.5px] font-medium ${
                   isActive ? "text-text" : "text-muted hover:text-text"
                 }`}
               >
-                {isActive && (
-                  <m.span layoutId="settings-cat" transition={spring} className="absolute inset-0 rounded-[10px] bg-surface ring-1 ring-border" />
-                )}
-                <Icon className={`relative size-4 ${isActive ? "text-accent-2" : ""}`} />
-                <span className="relative">{t(`settings.categories.${id}` as TKey)}</span>
+                <Icon name={icon} size={16} />
+                <span>{t(`settings.categories.${id}` as TKey)}</span>
               </button>
             );
           })}
         </nav>
-        <div className="mt-6 flex flex-col gap-1.5">
-          <Button size="sm" variant="ghost" icon={<Upload className="size-4" />} onClick={() => void doExport()} className="justify-start">
+        <div className="mt-6 flex flex-col gap-1">
+          <Button size="sm" variant="ghost" icon={<Icon name="upload" size={16} />} onClick={() => void doExport()} className="justify-start">
             {t("settings.export")}
           </Button>
-          <Button size="sm" variant="ghost" icon={<Download className="size-4" />} onClick={() => void doImport()} className="justify-start">
+          <Button size="sm" variant="ghost" icon={<Icon name="download" size={16} />} onClick={() => void doImport()} className="justify-start">
             {t("settings.import")}
           </Button>
           <Button
             size="sm"
             variant={confirmReset ? "danger" : "ghost"}
-            icon={<RotateCcw className="size-4" />}
+            icon={<Icon name="reset" size={16} />}
             onClick={() => void doReset()}
             onBlur={() => setConfirmReset(false)}
             className="justify-start"
@@ -106,15 +113,8 @@ export function SettingsPage() {
             {confirmReset ? t("settings.resetConfirm") : t("settings.reset")}
           </Button>
         </div>
-        <AnimatePresence>
-          {saving && (
-            <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-4 px-3 text-[12px] text-muted">
-              …
-            </m.div>
-          )}
-        </AnimatePresence>
       </aside>
-      <div className="min-w-0 flex-1 pt-14">
+      <div className="min-w-0 flex-1 pt-[60px]">
         {!settings ? (
           <div className="space-y-3">
             <Skeleton className="h-16" />
@@ -122,18 +122,17 @@ export function SettingsPage() {
             <Skeleton className="h-16" />
           </div>
         ) : (
-          <AnimatePresence mode="wait" initial={false}>
-            <m.div
-              key={active.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18 }}
-              className="space-y-4"
-            >
-              <active.Comp />
-            </m.div>
-          </AnimatePresence>
+          <Crossfade
+            active={active?.id ?? "general"}
+            render={(id) => {
+              const Comp = categories.find((c) => c.id === id)?.Comp ?? GeneralSection;
+              return (
+                <div className="space-y-4">
+                  <Comp />
+                </div>
+              );
+            }}
+          />
         )}
       </div>
     </div>

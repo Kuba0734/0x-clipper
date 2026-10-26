@@ -1,26 +1,25 @@
-import { m, type HTMLMotionProps } from "motion/react";
+import type { CSSProperties, HTMLAttributes } from "react";
 
-import { hoverLift, itemVariants, spring } from "@/lib/motion";
-
-interface Props extends HTMLMotionProps<"div"> {
+interface Props extends HTMLAttributes<HTMLDivElement> {
   interactive?: boolean;
+  /** Position in einer gestaffelt einblendenden Liste (max. ~10 wirken). */
+  index?: number;
 }
 
-/** Karte mit gestaffeltem Einblenden und optionalem Hover-Lift. */
-export function Card({ interactive, className = "", children, ...rest }: Props) {
+/** Glas-Panel ohne Blur; optional mit Hover-Lift und gestaffeltem Einblenden. */
+export function Card({ interactive, index, className = "", style, children, ...rest }: Props) {
+  const stagger = index !== undefined ? "stagger" : "";
   return (
-    <m.div
-      variants={itemVariants}
-      whileHover={interactive ? hoverLift : undefined}
-      transition={spring}
-      className={`rounded-card border border-border bg-surface ${className}`}
+    <div
+      className={`panel ${interactive ? "lift press cursor-pointer" : ""} ${stagger} ${className}`}
+      style={index !== undefined ? ({ ...style, "--i": index } as CSSProperties) : style}
       {...rest}
     >
       {children}
-    </m.div>
+    </div>
   );
 }
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`skeleton rounded-[10px] ${className}`} />;
+  return <div className={`skeleton rounded-md ${className}`} />;
 }

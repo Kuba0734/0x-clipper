@@ -1,7 +1,4 @@
-import { m } from "motion/react";
 import { useId } from "react";
-
-import { spring } from "@/lib/motion";
 
 interface Props {
   value: number;
@@ -16,28 +13,21 @@ interface Props {
 
 /**
  * Slider mit nativem <input type=range> für Tastatur/Screenreader.
- * Füllung per scaleX, Knopf per translateX – nur Transforms.
+ * Füllung per scaleX, Knopf per translateX. Während des Ziehens ohne Transition,
+ * damit der Knopf der Maus sofort folgt.
  */
 export function Slider({ value, min, max, step = 1, onChange, format, label, disabled }: Props) {
   const id = useId();
-  const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
+  const pct = max > min ? (value - min) / (max - min) : 0;
   return (
-    <div className={`flex w-full items-center gap-3 ${disabled ? "opacity-40" : ""}`}>
-      <div className="relative h-6 flex-1">
-        <div className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-surface-2 ring-1 ring-border">
-          <m.div
-            className="h-full w-full origin-left bg-gradient-accent"
-            animate={{ scaleX: pct / 100 }}
-            transition={spring}
-          />
+    <div className={`flex w-full items-center gap-3 ${disabled ? "opacity-35" : ""}`}>
+      <div className="group relative h-6 flex-1">
+        <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-surface-2">
+          <div className="h-full w-full origin-left bg-accent" style={{ transform: `scaleX(${pct})` }} />
         </div>
-        <m.div
-          className="pointer-events-none absolute inset-y-0 left-0 w-full"
-          animate={{ x: `${pct}%` }}
-          transition={spring}
-        >
-          <span className="absolute top-1/2 left-0 block size-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_0_4px_color-mix(in_srgb,var(--accent)_30%,transparent)]" />
-        </m.div>
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-full" style={{ transform: `translateX(${pct * 100}%)` }}>
+          <span className="absolute top-1/2 left-0 block size-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent shadow-[0_0_0_4px_rgba(255,255,255,0.12)]" />
+        </div>
         <input
           id={id}
           type="range"

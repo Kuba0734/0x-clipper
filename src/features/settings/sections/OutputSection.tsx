@@ -1,8 +1,8 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { FolderOpen, RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button, IconButton } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 import { Field, Section } from "@/components/ui/Field";
 import { NumberInput } from "@/components/ui/NumberInput";
 import { Toggle } from "@/components/ui/Toggle";
@@ -36,14 +36,14 @@ export function OutputSection() {
 
   return (
     <>
-      <Section>
+      <Section index={0}>
         <Field label={t("settings.output.folder")} hint={<span className="break-all">{o.folder || defaultDir}</span>}>
           {o.folder && (
             <IconButton label={t("settings.output.default")} onClick={() => set({ folder: "" })}>
-              <RotateCcw className="size-4" />
+              <Icon name="reset" size={16} />
             </IconButton>
           )}
-          <Button size="sm" icon={<FolderOpen className="size-4" />} onClick={() => void choose()}>
+          <Button size="sm" icon={<Icon name="folder" size={16} />} onClick={() => void choose()}>
             {t("settings.output.choose")}
           </Button>
         </Field>
@@ -59,7 +59,7 @@ export function OutputSection() {
               if (pattern !== o.filenamePattern) set({ filenamePattern: pattern });
               setDraft(null);
             }}
-            className="h-9 w-full rounded-[10px] border border-border bg-surface-2 px-3 font-mono text-[13px] outline-none focus-visible:border-accent"
+            className="h-9 w-full rounded-sm border border-border bg-surface px-3 font-mono text-[13px] outline-none focus-visible:border-border-strong"
           />
         </Field>
         <Field label={t("settings.output.subfolder")}>
@@ -69,7 +69,7 @@ export function OutputSection() {
           <NumberInput value={o.lowSpaceWarningGb} min={0} max={10000} suffix="GB" onChange={(lowSpaceWarningGb) => set({ lowSpaceWarningGb })} />
         </Field>
       </Section>
-      <Section>
+      <Section index={1}>
         <Field label={t("settings.output.cleanup")} hint={t("settings.output.cleanupHint")}>
           <Toggle
             checked={o.cleanup.enabled}
@@ -97,7 +97,7 @@ export function OutputSection() {
           />
         </Field>
       </Section>
-      <Section>
+      <Section index={2}>
         <Field label={t("settings.output.recMaxDuration")} hint={`0 = ${t("settings.output.off")}`}>
           <NumberInput value={rec.maxDurationMins} min={0} max={1440} suffix="min" onChange={(maxDurationMins) => setRec({ maxDurationMins })} />
         </Field>

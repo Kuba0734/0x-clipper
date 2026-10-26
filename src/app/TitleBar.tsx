@@ -1,7 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Copy, Minus, Square, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { Icon } from "@/components/ui/Icon";
 import { useT } from "@/i18n";
 import { StatusPill } from "./StatusPill";
 
@@ -18,15 +18,17 @@ export function TitleBar() {
     return () => un?.();
   }, [win]);
 
-  const btn = "flex h-full w-12 items-center justify-center text-muted transition-colors hover:bg-surface-2 hover:text-text";
+  const btn = "hoverable flex h-full w-12 items-center justify-center text-muted hover:text-text";
   return (
     <header
       data-tauri-drag-region
       onDoubleClick={() => void win.toggleMaximize()}
-      className="drag-region flex h-10 shrink-0 items-center border-b border-border/60 bg-bg pl-4"
+      className="drag-region flex h-10 shrink-0 items-center border-b border-border pl-4"
     >
       <div data-tauri-drag-region className="flex items-center gap-2.5">
-        <span className="size-4 rounded-[5px] bg-gradient-accent" aria-hidden />
+        <span className="grid size-4 place-items-center rounded-[5px] bg-accent text-on-accent" aria-hidden>
+          <Icon name="play" size={10} strokeWidth={0} fill="currentColor" />
+        </span>
         <span data-tauri-drag-region className="text-[13px] font-semibold tracking-tight">
           0x-clipper
         </span>
@@ -37,19 +39,21 @@ export function TitleBar() {
       </div>
       <div className="no-drag flex h-full">
         <button type="button" aria-label={t("titlebar.minimize")} className={btn} onClick={() => void win.minimize()}>
-          <Minus className="size-4" />
+          <Icon name="minus" size={16} />
         </button>
         <button type="button" aria-label={t("titlebar.maximize")} className={btn} onClick={() => void win.toggleMaximize()}>
-          {maximized ? <Copy className="size-3.5" /> : <Square className="size-3.5" />}
+          <Icon name={maximized ? "restore" : "square"} size={14} />
         </button>
         <button
           type="button"
           aria-label={t("titlebar.close")}
           title={t("titlebar.close")}
-          className={`${btn} hover:bg-danger hover:text-white`}
+          className="group relative flex h-full w-12 items-center justify-center text-muted hover:text-white"
           onClick={() => void win.close()}
         >
-          <X className="size-4" />
+          {/* Rote Fläche nur hier (Schließen = destruktiv), eingeblendet per opacity. */}
+          <span aria-hidden className="fade absolute inset-0 bg-danger opacity-0 group-hover:opacity-100" />
+          <Icon name="x" size={16} className="relative" />
         </button>
       </div>
     </header>

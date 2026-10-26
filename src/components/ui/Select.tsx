@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { Icon } from "./Icon";
 
 interface Option<T extends string> {
   value: T;
@@ -17,13 +17,13 @@ interface Props<T extends string> {
 /** Natives Select (leichtgewichtig, barrierefrei), im Design-System gestylt. */
 export function Select<T extends string>({ value, options, onChange, label, className = "", disabled }: Props<T>) {
   return (
-    <div className={`relative ${className}`}>
+    <div className={`hoverable relative rounded-sm ${className}`}>
       <select
         aria-label={label}
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value as T)}
-        className="h-9 w-full cursor-pointer appearance-none truncate rounded-[10px] border border-border bg-surface-2 pr-9 pl-3 text-[13px] text-text transition-colors outline-none hover:border-muted/40 focus-visible:border-accent disabled:opacity-40"
+        className="h-9 w-full cursor-pointer appearance-none truncate rounded-sm border border-border bg-surface pr-9 pl-3 text-[13px] text-text outline-none focus-visible:border-border-strong disabled:opacity-35"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
@@ -31,7 +31,7 @@ export function Select<T extends string>({ value, options, onChange, label, clas
           </option>
         ))}
       </select>
-      <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted" />
+      <Icon name="chevronDown" size={16} className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-muted" />
     </div>
   );
 }

@@ -16,15 +16,17 @@ function SourceBlock({
   value,
   devices,
   onChange,
+  index,
 }: {
   title: string;
   value: Source;
   devices: { id: string; name: string; isDefault: boolean }[];
   onChange: (p: Partial<Source>) => void;
+  index: number;
 }) {
   const t = useT();
   return (
-    <Section title={title}>
+    <Section title={title} index={index}>
       <Field label={title}>
         <Toggle checked={value.enabled} onChange={(enabled) => onChange({ enabled })} label={title} />
       </Field>
@@ -68,15 +70,17 @@ export function AudioSection() {
         title={t("settings.audio.system")}
         value={a.system}
         devices={devices.outputs}
+        index={0}
         onChange={(p) => set({ system: { ...a.system, ...p } })}
       />
       <SourceBlock
         title={t("settings.audio.mic")}
         value={a.mic}
         devices={devices.inputs}
+        index={1}
         onChange={(p) => set({ mic: { ...a.mic, ...p } })}
       />
-      <Section>
+      <Section index={2}>
         <Field label={t("settings.audio.tracks")} hint={t("settings.audio.tracksHint")}>
           <Segmented
             value={a.trackMode}

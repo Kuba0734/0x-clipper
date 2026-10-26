@@ -1,11 +1,9 @@
-import { AnimatePresence, m } from "motion/react";
-import { X } from "lucide-react";
 import { useState } from "react";
 
 import { useT } from "@/i18n";
 import { commands } from "@/lib/ipc";
 import { keycaps } from "@/lib/format";
-import { spring } from "@/lib/motion";
+import { Icon } from "./Icon";
 
 interface Props {
   value: string;
@@ -55,18 +53,20 @@ function keyName(code: string): string | null {
   return map[code] ?? null;
 }
 
-function Keycap({ k, pressed }: { k: string; pressed?: boolean }) {
+/** Einzelne Taste; erscheint mit Pop, beim Drücken kurzer Press-Effekt (scale). */
+export function Keycap({ k, pressed, small }: { k: string; pressed?: boolean; small?: boolean }) {
   return (
-    <m.kbd
-      layout
-      initial={{ opacity: 0, y: -4, scale: 0.9 }}
-      animate={{ opacity: 1, y: pressed ? 1 : 0, scale: pressed ? 0.94 : 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={spring}
-      className="inline-flex h-7 min-w-7 items-center justify-center rounded-[8px] border border-border border-b-[3px] bg-surface-2 px-2 font-sans text-[12px] font-semibold text-text"
+    <kbd
+      className={`anim-key-pop inline-flex items-center justify-center rounded-sm border border-border-strong border-b-[3px] bg-surface-2 font-sans font-semibold text-text ${
+        small ? "h-6 min-w-6 px-1.5 text-[11px]" : "h-7 min-w-7 px-2 text-[12px]"
+      }`}
+      style={{
+        transform: pressed ? "translateY(1px) scale(0.94)" : undefined,
+        transition: "transform var(--dur-fast) var(--ease)",
+      }}
     >
       {k}
-    </m.kbd>
+    </kbd>
   );
 }
 
@@ -127,23 +127,17 @@ export function KeycapInput({ value, onChange, error, label }: Props) {
           onKeyDown={onKeyDown}
           onKeyUp={() => setPressed(false)}
           onBlur={() => recording && stop()}
-          className={`flex h-10 min-w-44 items-center justify-center gap-1.5 rounded-[12px] border px-3 transition-colors ${
-            recording
-              ? "border-accent bg-accent/10"
-              : error
-                ? "border-danger/70 bg-surface-2"
-                : "border-border bg-surface-2 hover:border-muted/40"
+          className={`press hoverable flex h-10 min-w-44 items-center justify-center gap-1.5 rounded-md border px-3 ${
+            recording ? "border-accent bg-surface-2" : error ? "border-danger/70 bg-surface" : "border-border bg-surface"
           }`}
         >
-          <AnimatePresence mode="popLayout" initial={false}>
-            {caps.length > 0 ? (
-              caps.map((k, i) => <Keycap key={`${k}-${i}`} k={k} pressed={recording && pressed} />)
-            ) : (
-              <m.span key="placeholder" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[13px] text-muted">
-                {recording ? t("settings.hotkeys.press") : t("dashboard.notSet")}
-              </m.span>
-            )}
-          </AnimatePresence>
+          {caps.length > 0 ? (
+            caps.map((k, i) => <Keycap key={`${k}-${i}`} k={k} pressed={recording && pressed} />)
+          ) : (
+            <span key={recording ? "rec" : "idle"} className="anim-fade-in text-[13px] text-muted">
+              {recording ? t("settings.hotkeys.press") : t("dashboard.notSet")}
+            </span>
+          )}
         </button>
         {value && !recording && (
           <button
@@ -151,24 +145,17 @@ export function KeycapInput({ value, onChange, error, label }: Props) {
             aria-label={t("settings.hotkeys.clear")}
             title={t("settings.hotkeys.clear")}
             onClick={() => onChange("")}
-            className="flex size-8 items-center justify-center rounded-[10px] text-muted hover:bg-surface-2 hover:text-text"
+            className="press hoverable flex size-8 items-center justify-center rounded-sm text-muted hover:text-text"
           >
-            <X className="size-4" />
+            <Icon name="x" size={16} />
           </button>
         )}
       </div>
-      <AnimatePresence>
-        {error && (
-          <m.span
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="text-[12px] text-danger"
-          >
-            {error}
-          </m.span>
-        )}
-      </AnimatePresence>
+      {error && (
+        <span key={error} className="anim-rise-in text-[12px] text-danger">
+          {error}
+        </span>
+      )}
     </div>
   );
 }

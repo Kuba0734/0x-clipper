@@ -1,4 +1,5 @@
 # Erzeugt das App-Icon (1024 px) und die Tray-Icons (normal + Aufnahme) per GDI+.
+# Monochrom (Design-System): dunkle Kachel mit weißem Ring und Play-Symbol, Rot nur für Aufnahme.
 # Danach: pnpm tauri icon src-tauri/icons/app-icon.png
 Add-Type -AssemblyName System.Drawing
 $ErrorActionPreference = 'Stop'
@@ -20,8 +21,8 @@ function New-Icon([int]$size, [string]$path, [bool]$rec) {
     $gp.AddArc($size - $d, $size - $d, $d, $d, 0, 90)
     $gp.AddArc(0, $size - $d, $d, $d, 90, 90)
     $gp.CloseFigure()
-    $c1 = [System.Drawing.Color]::FromArgb(255, 0x7C, 0x5C, 0xFF)
-    $c2 = [System.Drawing.Color]::FromArgb(255, 0x22, 0xD3, 0xEE)
+    $c1 = [System.Drawing.Color]::FromArgb(255, 0x1C, 0x1C, 0x1F)
+    $c2 = [System.Drawing.Color]::FromArgb(255, 0x05, 0x05, 0x06)
     $brush = New-Object System.Drawing.Drawing2D.LinearGradientBrush $rect, $c1, $c2, 45
     $g.FillPath($brush, $gp)
     # Stilisierter "Replay"-Ring mit Play-Dreieck.

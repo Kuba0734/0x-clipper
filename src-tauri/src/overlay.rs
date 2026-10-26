@@ -2,8 +2,9 @@
 //! (`WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_NOACTIVATE`). Gezeichnet mit Direct2D
 //! in eine DIB, angezeigt per `UpdateLayeredWindow` – kein WebView, stiehlt nie den Fokus.
 //!
-//! Animation (Design-System): Spring-Einflug (stiffness 380, damping 30), Häkchen wird als
-//! Pfad gezeichnet, dann Auto-Dismiss. Der Timer läuft nur während Animationen.
+//! Animation (Design-System): seitlicher Einflug mit cubic-bezier(0.22, 1, 0.36, 1), Häkchen
+//! wird als Pfad gezeichnet, ablaufende Fortschrittsleiste, dann Auto-Dismiss. Timer laufen
+//! nur, solange ein Toast sichtbar ist.
 
 use std::cell::RefCell;
 use std::sync::atomic::{AtomicIsize, Ordering};
@@ -89,7 +90,6 @@ static HWND_RAW: AtomicIsize = AtomicIsize::new(0);
 static RX: OnceLock<Receiver<Request>> = OnceLock::new();
 const WM_TOAST: u32 = WM_APP + 1;
 const TIMER_FRAME: usize = 1;
-const TIMER_OUT: usize = 2;
 
 impl Overlay {
     pub fn start() -> Self {
@@ -229,7 +229,7 @@ impl Renderer {
         }
     }
 
-    fn draw(&self, req: &Request, check_progress: f32) -> windows::core::Result<()> {
+    fn draw(&self, req: &Request, check_progress: f32, bar: f32) -> windows::core::Result<()> {
         let rt = &self.rt;
         let rect = RECT { left: 0, top: 0, right: self.px.0, bottom: self.px.1 };
         // SAFETY: Render-Target ist an unseren Memory-DC gebunden; alle Ressourcen leben im Block.
@@ -239,35 +239,23 @@ impl Renderer {
             rt.Clear(Some(&color(0x000000, 0.0)));
             let card = D2D1_ROUNDED_RECT {
                 rect: D2D_RECT_F { left: 0.5, top: 0.5, right: W - 0.5, bottom: H - 0.5 },
-                radiusX: 14.0,
-                radiusY: 14.0,
+                radiusX: 16.0,
+                radiusY: 16.0,
             };
-            let bg = rt.CreateSolidColorBrush(&color(0x14141A, 0.94), None)?;
-            let border = rt.CreateSolidColorBrush(&color(0x2A2A35, 1.0), None)?;
+            // Monochrom wie die App: dunkles Glas, 1px-Rand rgba(255,255,255,0.08).
+            let bg = rt.CreateSolidColorBrush(&color(0x111113, 0.92), None)?;
+            let border = rt.CreateSolidColorBrush(&color(0xFFFFFF, 0.08), None)?;
             rt.FillRoundedRectangle(&card, &bg);
             rt.DrawRoundedRectangle(&card, &border, 1.0, None);
 
-            // Icon-Kreis: Akzentverlauf, bei Fehler/Aufnahme rot.
+            // Icon-Kreis: Weiß (Akzent) mit dunklem Symbol; Rot nur für Fehler und Aufnahme.
             let center = Vector2 { X: 38.0, Y: H / 2.0 };
             let circle = D2D1_ELLIPSE { point: center, radiusX: 18.0, radiusY: 18.0 };
             let danger = matches!(req.kind, ToastKind::Error | ToastKind::RecordingStarted);
-            if danger {
-                let b = rt.CreateSolidColorBrush(&color(0xEF4444, 1.0), None)?;
-                rt.FillEllipse(&circle, &b);
-            } else {
-                let stops = [
-                    D2D1_GRADIENT_STOP { position: 0.0, color: color(0x7C5CFF, 1.0) },
-                    D2D1_GRADIENT_STOP { position: 1.0, color: color(0x22D3EE, 1.0) },
-                ];
-                let coll = rt.CreateGradientStopCollection(&stops, D2D1_GAMMA_2_2, D2D1_EXTEND_MODE_CLAMP)?;
-                let props = D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES {
-                    startPoint: Vector2 { X: center.X - 18.0, Y: center.Y - 18.0 },
-                    endPoint: Vector2 { X: center.X + 18.0, Y: center.Y + 18.0 },
-                };
-                let b = rt.CreateLinearGradientBrush(&props, None, &coll)?;
-                rt.FillEllipse(&circle, &b);
-            }
-            let white = rt.CreateSolidColorBrush(&color(0xFFFFFF, 1.0), None)?;
+            let (fill, glyph) = if danger { (0xFF453A, 0xFFFFFF) } else { (0xFFFFFF, 0x0A0A0B) };
+            let fill_b = rt.CreateSolidColorBrush(&color(fill, 1.0), None)?;
+            rt.FillEllipse(&circle, &fill_b);
+            let white = rt.CreateSolidColorBrush(&color(glyph, 1.0), None)?;
             match req.kind.icon() {
                 Icon::Check => {
                     // Häkchen als Pfad, gezeichnet bis `check_progress` (pathLength).
@@ -302,8 +290,8 @@ impl Renderer {
                 }
             }
 
-            let text = rt.CreateSolidColorBrush(&color(0xEDEDF2, 1.0), None)?;
-            let muted = rt.CreateSolidColorBrush(&color(0x8B8B9A, 1.0), None)?;
+            let text = rt.CreateSolidColorBrush(&color(0xF4F4F5, 1.0), None)?;
+            let muted = rt.CreateSolidColorBrush(&color(0x8E8E93, 1.0), None)?;
             let has_detail = !req.detail.is_empty();
             let title_top = if has_detail { 17.0 } else { (H - 20.0) / 2.0 };
             let title: Vec<u16> = req.title.encode_utf16().collect();
@@ -325,6 +313,15 @@ impl Renderer {
                     D2D1_DRAW_TEXT_OPTIONS_CLIP,
                     DWRITE_MEASURING_MODE_NATURAL,
                 );
+            }
+            // Ablaufende Fortschrittsleiste (Restzeit bis zum Ausblenden).
+            if bar > 0.0 {
+                let c = if req.kind == ToastKind::Error { 0xFF453A } else { 0xFFFFFF };
+                let b = rt.CreateSolidColorBrush(&color(c, 0.85), None)?;
+                let track = rt.CreateSolidColorBrush(&color(0xFFFFFF, 0.06), None)?;
+                let (x0, x1, y) = (16.0, W - 16.0, H - 6.0);
+                rt.FillRectangle(&D2D_RECT_F { left: x0, top: y, right: x1, bottom: y + 2.0 }, &track);
+                rt.FillRectangle(&D2D_RECT_F { left: x0, top: y, right: x0 + (x1 - x0) * bar.min(1.0), bottom: y + 2.0 }, &b);
             }
             rt.EndDraw(None, None)?;
             // GDI puffert Zeichenbefehle: vor UpdateLayeredWindow sicher in die DIB schreiben.
@@ -409,16 +406,29 @@ fn color(rgb: u32, a: f32) -> D2D1_COLOR_F {
     }
 }
 
-/// Feder-Lösung (Masse 1, k = 380, c = 30, unterdämpft) von 0 nach 1.
-fn spring(t_s: f32) -> f32 {
-    let w0 = 380f32.sqrt();
-    let zeta = 30.0 / (2.0 * w0);
-    let wd = w0 * (1.0 - zeta * zeta).sqrt();
-    1.0 - (-zeta * w0 * t_s).exp() * ((wd * t_s).cos() + (zeta * w0 / wd) * (wd * t_s).sin())
-}
-
-fn ease_out_cubic(t: f32) -> f32 {
-    1.0 - (1.0 - t.clamp(0.0, 1.0)).powi(3)
+/// Standard-Easing des Design-Systems: cubic-bezier(0.22, 1, 0.36, 1).
+fn ease(t: f32) -> f32 {
+    const X1: f32 = 0.22;
+    const Y1: f32 = 1.0;
+    const X2: f32 = 0.36;
+    const Y2: f32 = 1.0;
+    let t = t.clamp(0.0, 1.0);
+    let bez = |a: f32, b: f32, s: f32| {
+        let u = 1.0 - s;
+        3.0 * u * u * s * a + 3.0 * u * s * s * b + s * s * s
+    };
+    // x(s) = t per Newton-Verfahren lösen, dann y(s) auswerten.
+    let mut s = t;
+    for _ in 0..8 {
+        let x = bez(X1, X2, s) - t;
+        let u = 1.0 - s;
+        let dx = 3.0 * u * u * X1 + 6.0 * u * s * (X2 - X1) + 3.0 * s * s * (1.0 - X2);
+        if dx.abs() < 1e-6 {
+            break;
+        }
+        s = (s - x / dx).clamp(0.0, 1.0);
+    }
+    bez(Y1, Y2, s)
 }
 
 struct Active {
@@ -429,13 +439,17 @@ struct Active {
     anchor: (i32, i32),
     dir: f32,
     drawn_progress: f32,
+    drawn_bar_px: f32,
+    slow_timer: bool,
 }
 
 thread_local! {
     static ACTIVE: RefCell<Option<Active>> = const { RefCell::new(None) };
 }
 
-const IN_MS: f32 = 380.0;
+const IN_MS: f32 = 300.0;
+const FRAME_FAST_MS: u32 = 16;
+const FRAME_SLOW_MS: u32 = 33;
 const OUT_MS: f32 = 220.0;
 
 fn run() -> windows::core::Result<()> {
@@ -488,21 +502,6 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             LRESULT(0)
         }
         WM_TIMER => {
-            if wp.0 == TIMER_OUT {
-                // SAFETY: eigenes Fenster/Timer.
-                unsafe {
-                    let _ = KillTimer(Some(hwnd), TIMER_OUT);
-                }
-                ACTIVE.with(|a| {
-                    if let Some(a) = a.borrow_mut().as_mut() {
-                        a.leaving = Some(Instant::now());
-                    }
-                });
-                // SAFETY: wie oben.
-                unsafe {
-                    SetTimer(Some(hwnd), TIMER_FRAME, 16, None);
-                }
-            }
             tick(hwnd);
             LRESULT(0)
         }
@@ -548,37 +547,41 @@ fn begin(hwnd: HWND, req: Request) {
             anchor: (x, y),
             dir,
             drawn_progress: -1.0,
+            drawn_bar_px: -1.0,
+            slow_timer: false,
         });
     });
     // SAFETY: Eigenes Fenster; SW_SHOWNOACTIVATE aktiviert nie.
     unsafe {
-        let _ = KillTimer(Some(hwnd), TIMER_OUT);
         let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
         let _ = SetWindowPos(hwnd, Some(HWND_TOPMOST), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-        SetTimer(Some(hwnd), TIMER_FRAME, 16, None);
+        SetTimer(Some(hwnd), TIMER_FRAME, FRAME_FAST_MS, None);
     }
     tick(hwnd);
 }
 
 fn tick(hwnd: HWND) {
-    let done = ACTIVE.with(|cell| {
+    ACTIVE.with(|cell| {
         let mut slot = cell.borrow_mut();
-        let Some(a) = slot.as_mut() else { return true };
+        let Some(a) = slot.as_mut() else { return };
         let t = a.started.elapsed().as_secs_f32() * 1000.0;
         let reduce = a.req.reduce_motion;
-        let (offset, mut alpha, progress) = if reduce {
-            (0.0, (t / 120.0).min(1.0), 1.0)
+        let total = a.req.duration_ms as f32;
+        if a.leaving.is_none() && t >= total {
+            a.leaving = Some(Instant::now());
+            set_frame_timer(hwnd, FRAME_FAST_MS);
+        }
+        // Einflug: seitlich + Fade mit dem Standard-Easing; Häkchen wird danach gezeichnet.
+        let (mut offset, mut alpha, check) = if reduce {
+            (0.0, 1.0, 1.0)
         } else {
-            let s = spring(t / 1000.0);
-            ((1.0 - s) * 40.0 * a.dir, (t / 160.0).min(1.0), ease_out_cubic((t - 120.0) / 260.0))
+            let p = ease((t / IN_MS).min(1.0));
+            ((1.0 - p) * 48.0 * a.dir, p, ease(((t - 120.0) / 260.0).clamp(0.0, 1.0)))
         };
-        let mut extra = 0.0;
         if let Some(l) = a.leaving {
-            let p = (l.elapsed().as_secs_f32() * 1000.0 / OUT_MS).min(1.0);
-            alpha *= 1.0 - p * p;
-            if !reduce {
-                extra = p * 12.0 * a.dir;
-            }
+            let p = if reduce { 1.0 } else { (l.elapsed().as_secs_f32() * 1000.0 / OUT_MS).min(1.0) };
+            alpha *= 1.0 - ease(p);
+            offset += ease(p) * 48.0 * a.dir;
             if p >= 1.0 {
                 // SAFETY: eigenes Fenster.
                 unsafe {
@@ -586,56 +589,61 @@ fn tick(hwnd: HWND) {
                     let _ = ShowWindow(hwnd, SW_HIDE);
                 }
                 *slot = None;
-                return true;
+                return;
             }
         }
-        // Inhalt nur neu zeichnen, solange sich das Häkchen ändert.
-        let progress = progress.clamp(0.0, 1.0);
-        if (progress - a.drawn_progress).abs() > 0.001 {
-            if let Err(e) = a.renderer.draw(&a.req, progress) {
+        // Ablaufende Leiste (bei reduzierter Bewegung aus).
+        let bar = if reduce { 0.0 } else { (1.0 - t / total).clamp(0.0, 1.0) };
+        let bar_px = (bar * (W - 32.0) * a.renderer.scale).round();
+        if (check - a.drawn_progress).abs() > 0.001 || bar_px != a.drawn_bar_px {
+            if let Err(e) = a.renderer.draw(&a.req, check, bar) {
                 tracing::warn!("Overlay zeichnen: {e}");
             }
-            a.drawn_progress = progress;
+            a.drawn_progress = check;
+            a.drawn_bar_px = bar_px;
         }
-        let scale = a.renderer.scale;
-        let x = a.anchor.0 + ((offset + extra) * scale) as i32;
+        let x = a.anchor.0 + (offset * a.renderer.scale) as i32;
         a.renderer.present(hwnd, (x, a.anchor.1), alpha);
-        let settled = t >= IN_MS.max(400.0) && a.leaving.is_none();
-        if settled {
-            // Haltephase: kein Frame-Timer, nur ein einmaliger Timer für das Ausblenden.
-            let hold = (a.req.duration_ms as f32 - t).max(0.0) as u32;
-            // SAFETY: eigenes Fenster.
-            unsafe {
-                let _ = KillTimer(Some(hwnd), TIMER_FRAME);
-                SetTimer(Some(hwnd), TIMER_OUT, hold.max(1), None);
+
+        // Timer-Takt: 60 fps für Ein-/Ausflug, 30 fps für die Leiste, sonst nur ein
+        // einmaliger Weck-Timer bis zum Ausblenden.
+        if a.leaving.is_none() && t >= IN_MS.max(400.0) {
+            if reduce {
+                // SAFETY: eigenes Fenster.
+                unsafe {
+                    let _ = KillTimer(Some(hwnd), TIMER_FRAME);
+                    SetTimer(Some(hwnd), TIMER_FRAME, ((total - t).max(1.0)) as u32, None);
+                }
+            } else if !a.slow_timer {
+                set_frame_timer(hwnd, FRAME_SLOW_MS);
+                a.slow_timer = true;
             }
         }
-        false
     });
-    let _ = done;
+}
+
+fn set_frame_timer(hwnd: HWND, ms: u32) {
+    // SAFETY: eigenes Fenster; SetTimer mit gleicher ID ersetzt den alten Timer.
+    unsafe {
+        SetTimer(Some(hwnd), TIMER_FRAME, ms, None);
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{ease_out_cubic, spring};
+    use super::ease;
 
     #[test]
-    fn spring_settles_near_one() {
-        assert!(spring(0.0).abs() < 1e-4);
-        assert!((spring(0.6) - 1.0).abs() < 0.01);
-        // Leichter Überschwinger, wie bei Motion-Springs.
-        assert!((0.0..0.5).step_by_f32(0.01).any(|t| spring(t) > 1.0));
-        assert_eq!(ease_out_cubic(2.0), 1.0);
-    }
-
-    trait StepF32 {
-        fn step_by_f32(self, step: f32) -> Box<dyn Iterator<Item = f32>>;
-    }
-    impl StepF32 for std::ops::Range<f32> {
-        fn step_by_f32(self, step: f32) -> Box<dyn Iterator<Item = f32>> {
-            let n = ((self.end - self.start) / step) as usize;
-            let s = self.start;
-            Box::new((0..n).map(move |i| s + i as f32 * step))
+    fn ease_matches_css_curve() {
+        assert!(ease(0.0).abs() < 1e-4);
+        assert!((ease(1.0) - 1.0).abs() < 1e-4);
+        // cubic-bezier(0.22, 1, 0.36, 1) ist stark ausrollend: bei 30 % schon > 75 %.
+        assert!(ease(0.3) > 0.75, "{}", ease(0.3));
+        let mut last = 0.0;
+        for i in 0..=100 {
+            let v = ease(i as f32 / 100.0);
+            assert!(v + 1e-4 >= last);
+            last = v;
         }
     }
 }

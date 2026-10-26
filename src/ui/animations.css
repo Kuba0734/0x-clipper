@@ -1,0 +1,159 @@
+/* Alle Animationen: nur transform und opacity, nur CSS. Zeiten/Easing aus tokens.css. */
+
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+@keyframes fade-out {
+  to { opacity: 0; }
+}
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.95); }
+}
+@keyframes modal-out {
+  to { opacity: 0; transform: translateY(10px) scale(0.95); }
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(110%); }
+}
+@keyframes toast-out {
+  to { opacity: 0; transform: translateX(110%); }
+}
+@keyframes progress-run {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+@keyframes shimmer {
+  to { transform: translateX(100%); }
+}
+@keyframes pulse-ring {
+  from { transform: scale(1); opacity: 0.55; }
+  to { transform: scale(2.4); opacity: 0; }
+}
+@keyframes blink {
+  50% { opacity: 0.25; }
+}
+@keyframes key-pop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.9); }
+}
+
+.anim-fade-in { animation: fade-in var(--dur) var(--ease) both; }
+.anim-fade-out { animation: fade-out var(--dur-fast) var(--ease) both; }
+.anim-rise-in { animation: rise-in var(--dur-slow) var(--ease) both; }
+.anim-modal-in { animation: modal-in var(--dur-slow) var(--ease) both; }
+.anim-modal-out { animation: modal-out var(--dur) var(--ease) both; }
+.anim-toast-in { animation: toast-in var(--dur-slow) var(--ease) both; }
+.anim-toast-out { animation: toast-out var(--dur) var(--ease) both; }
+.anim-key-pop { animation: key-pop var(--dur) var(--ease) both; }
+.anim-blink { animation: blink 1.2s ease-in-out infinite; }
+
+/* Gestaffelte Listen: style={{ "--i": index }} (max. ~10). */
+.stagger {
+  animation: rise-in var(--dur-slow) var(--ease) both;
+  animation-delay: calc(min(var(--i, 0), 10) * var(--stagger));
+}
+
+/* Hover-Lift mit dezentem Glow: der Glow liegt fertig gerendert im ::after und wird nur
+   über opacity eingeblendet (box-shadow selbst wird nie animiert). */
+.lift {
+  position: relative;
+  transition: transform var(--dur) var(--ease);
+}
+.lift::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  box-shadow: var(--glow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur) var(--ease);
+}
+.lift:hover {
+  transform: translateY(var(--hover-lift));
+}
+.lift:hover::after {
+  opacity: 1;
+}
+
+/* Hover-Fläche als Overlay (opacity statt background-color). */
+.hoverable {
+  position: relative;
+  isolation: isolate;
+}
+.hoverable::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--surface-hover);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.hoverable:hover::before {
+  opacity: 1;
+}
+
+/* Klick: leicht eindrücken. */
+.press {
+  transition: transform var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+.press:active {
+  transform: scale(var(--press-scale));
+}
+.lift.press:active {
+  transform: translateY(var(--hover-lift)) scale(var(--press-scale));
+}
+
+/* Ein- und Ausblenden per opacity (z. B. Hover-Vorschau, Overlays auf Karten). */
+.fade {
+  transition: opacity var(--dur) var(--ease);
+}
+
+/* Werte, die sich ändern (Balken, Ring): nur transform. */
+.tween {
+  transition: transform var(--dur-slow) var(--ease);
+}
+
+/* Aufnahme-Puls */
+.pulse {
+  animation: pulse-ring 1.4s var(--ease) infinite;
+}
+
+/* Gleitende Markierung (Navigation, Segmente): Position nur per transform. */
+.slide-indicator {
+  transition: transform var(--dur) var(--ease), opacity var(--dur) var(--ease);
+  will-change: transform;
+}
+
+/* Skeleton-Shimmer */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  animation: shimmer 1.4s infinite;
+}
+
+/* Reduzierte Bewegung: Endlos-Animationen aus, Ein-/Ausblenden nur noch minimal. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after,
+  .anim-blink,
+  .pulse {
+    animation: none;
+  }
+}
+.reduce-motion .skeleton::after,
+.reduce-motion .anim-blink,
+.reduce-motion .pulse {
+  animation: none;
+}

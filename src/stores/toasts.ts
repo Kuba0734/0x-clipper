@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+import { EXIT_MS } from "@/lib/anim";
+
 export type ToastKind = "success" | "error" | "info";
 
 export interface Toast {
@@ -7,11 +9,15 @@ export interface Toast {
   kind: ToastKind;
   title: string;
   detail?: string;
+  /** Anzeigedauer bis zum Auto-Dismiss (Fortschrittsleiste läuft so lange). */
+  durationMs: number;
+  /** Läuft gerade die Ausblend-Animation? */
+  leaving?: boolean;
 }
 
 interface ToastState {
   toasts: Toast[];
-  push: (t: Omit<Toast, "id">) => void;
+  push: (t: Omit<Toast, "id" | "durationMs" | "leaving">) => void;
   dismiss: (id: number) => void;
 }
 
@@ -21,9 +27,16 @@ export const useToasts = create<ToastState>((set, get) => ({
   toasts: [],
   push: (t) => {
     const id = nextId++;
-    // Höchstens drei gleichzeitig.
-    set({ toasts: [...get().toasts.slice(-2), { ...t, id }] });
-    window.setTimeout(() => get().dismiss(id), t.kind === "error" ? 5000 : 3000);
+    const durationMs = t.kind === "error" ? 5000 : 3000;
+    // Höchstens drei gleichzeitig; ältere gehen sofort.
+    set({ toasts: [...get().toasts.slice(-2), { ...t, id, durationMs }] });
+    window.setTimeout(() => get().dismiss(id), durationMs);
   },
-  dismiss: (id) => set({ toasts: get().toasts.filter((t) => t.id !== id) }),
+  dismiss: (id) => {
+    const cur = get().toasts.find((t) => t.id === id);
+    if (!cur || cur.leaving) return;
+    // Erst ausblenden lassen, dann entfernen.
+    set({ toasts: get().toasts.map((t) => (t.id === id ? { ...t, leaving: true } : t)) });
+    window.setTimeout(() => set({ toasts: get().toasts.filter((t) => t.id !== id) }), EXIT_MS);
+  },
 }));
